@@ -1,7 +1,8 @@
-name: libzip-crystal
-version: 0.1.0
+name: libzip.cr
+version: 0.2.0
 
 authors:
   - Paul Duncan <pabs@pablotron.org>
+  - NPN <me@npn.am>
 
 license: MIT

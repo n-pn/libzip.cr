@@ -10,13 +10,13 @@ Add this to your application's `shard.yml`:
 ```yaml
 dependencies:
   libzip-crystal:
-    github: pablotron/libzip-crystal
+    github: n-pn/libzip.cr
 ```
 
 ## Usage
 
 Use `crystal doc` to generate API documentation and `crystal spec` to
-run the test suite.  Here is a basic example:
+run the test suite. Here is a basic example:
 
 ```crystal
 require "zip"

@@ -15,7 +15,7 @@ describe "Zip::DescriptorSource" do
     # open src zip file for reading
     Zip::Archive.open(ZIP_PATH) do |zip|
       SOURCE_FILES.each do |path|
-        zip.stat(path).size.should eq File.stat(path).size
+        zip.stat(path).size.should eq File.info(path).size
       end
     end
   end

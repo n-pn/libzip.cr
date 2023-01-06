@@ -8,7 +8,7 @@ module Zip
 
     # Internal constructor.  Use `Archive#each` instead.
     protected def initialize(
-      @zip   : Archive, 
+      @zip : Archive,
       @flags : Int32 = 0
     )
       @max = @zip.num_entries(@flags)

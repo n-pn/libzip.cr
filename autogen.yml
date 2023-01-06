@@ -1,0 +1,11 @@
+name: LibZip
+cflags: '-DU_COMMON_IMPLEMENTATION'
+ldflags: '-lzip'
+
+destdir: src/zip/
+
+definitions:
+  libzip:
+    description: 'LibZIP binding'
+    includes: ['zip.h']
+    prefixes: ['zip_']
