@@ -335,6 +335,9 @@ class Zip::Archive
     (ptr != nil) ? String.new(ptr, len) : nil
   end
 
+  property compression_method : CompressionMethod = :default
+  property compression_flags : Int32 = 0
+
   # Add given `Zip::Source` *source* to archive as *path* and return
   # index of new entry.
   #
@@ -353,7 +356,15 @@ class Zip::Archive
     assert_open!
 
     index = LibZip.zip_file_add(@zip, fname, source, flags)
-    index >= 0 ? index : raise Error.new(self.error)
+    raise Error.new(self.error) if index < 0
+
+    set_compression(index)
+    index
+  end
+
+  def set_compression(index : Int64, compression_method = @compression_method, compression_flags = @compression_flags)
+    status = LibZip.zip_set_file_compression(self, index, compression_method, compression_flags)
+    raise Error.new(self.error) if status != 0
   end
 
   # Add archive entry *path* with content *body*.
@@ -448,9 +459,8 @@ class Zip::Archive
   def replace(index : UInt64, source : Source, flags : Int32 = 0)
     assert_open!
 
-    if LibZip.zip_file_replace(@zip, index, source.source.not_nil!, flags) == -1
-      raise Error.new(error)
-    end
+    status = LibZip.zip_file_replace(@zip, index, source.source.not_nil!, flags)
+    raise Error.new(error) if status == -1
   end
 
   # Replace entry at path *path* with `Source` *source*.
@@ -464,9 +474,7 @@ class Zip::Archive
   #     zip.replace("foo.txt", StringSource.new(zip, "new content"))
   #
   def replace(path : String, source : Source, flags : Int32 = 0)
-    assert_open!
-
-    replace(name_locate_throws(path), source, flags)
+    replace(name_locate!(path), source, flags)
   end
 
   # Replace entry at index *index* with contents *body*.
@@ -510,10 +518,8 @@ class Zip::Archive
   def rename(index : UInt64, new_path : String, flags : Int32 = 0)
     assert_open!
 
-    err = LibZip.zip_file_rename(@zip, index, new_path, flags)
-    raise Error.new(err) if err == -1
-
-    nil
+    status = LibZip.zip_file_rename(@zip, index, new_path, flags)
+    raise Error.new(self.error) if status == -1
   end
 
   # Rename file named *old_path* to new path *new_path*.
@@ -527,7 +533,7 @@ class Zip::Archive
   #     zip.rename("foo.txt", "new-file.txt")
   #
   def rename(old_path : String, new_path : String, flags : Int32 = 0)
-    rename(name_locate_throws(old_path), new_path, flags)
+    rename(name_locate!(old_path), new_path, flags)
   end
 
   # Delete file at given index *index*.
@@ -540,13 +546,10 @@ class Zip::Archive
   #     # delete first file in archive
   #     zip.delete(0)
   #
-  def delete(index : UInt64)
+  def delete(index : UInt64) : Nil
     assert_open!
-
-    err = LibZip.zip_delete(@zip, index)
-    raise Error.new(error) if err == -1
-
-    nil
+    status = LibZip.zip_delete(@zip, index)
+    raise Error.new(self.error) if status == -1
   end
 
   # Delete file at given path *path*.
@@ -560,8 +563,7 @@ class Zip::Archive
   #     zip.delete("foo.txt")
   #
   def delete(path : String)
-    assert_open!
-    delete(name_locate_throws(path))
+    delete(name_locate!(path))
   end
 
   # Returns index of given *path*, or -1 if the given path could not
@@ -576,7 +578,6 @@ class Zip::Archive
   #
   def name_locate(path : String, flags : Int32 = 0) : Int64
     assert_open!
-
     LibZip.zip_name_locate(@zip, path, flags)
   end
 
@@ -589,12 +590,11 @@ class Zip::Archive
   #
   #     # get index of "foo.txt" or raise exception if "foo.txt" could
   #     # not be found
-  #     index = zip.name_locate_throws("foo.txt")
+  #     index = zip.name_locate!("foo.txt")
   #
-  def name_locate_throws(path : String, flags : Int32 = 0) : UInt64
-    ofs = name_locate(path, flags)
-    raise "unknown name: #{path}" if ofs == -1
-    UInt64.new(ofs)
+  def name_locate!(path : String, flags : Int32 = 0) : UInt64
+    index = name_locate(path, flags)
+    index > -1 ? index.to_u64 : raise "unknown name: #{path}"
   end
 
   # Returns path of given *index*, or nil if there was an error or the
@@ -816,7 +816,7 @@ class Zip::Archive
   #     zip.get_file_comment("foo.txt")
   #
   def get_file_comment(path : String, flags : Int32 = 0)
-    get_file_comment(name_locate_throws(path), flags)
+    get_file_comment(name_locate!(path), flags)
   end
 
   # Set comment of file at *index* to string *comment*.
@@ -848,7 +848,7 @@ class Zip::Archive
   #     zip.set_file_comment("foo.txt", "example comment")
   #
   def set_file_comment(path : String, comment : String?, flags : Int32 = 0)
-    set_file_comment(name_locate_throws(path), comment, flags)
+    set_file_comment(name_locate!(path), comment, flags)
   end
 
   # Get the number of files in this archive.

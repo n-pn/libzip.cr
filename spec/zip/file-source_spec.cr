@@ -9,6 +9,8 @@ describe "Zip::FileSource" do
 
     # populate src zip with test files
     Zip::Archive.create(zip_path) do |zip|
+      zip.compression_method = :zstd
+      zip.compression_flags = 3
       files.each { |path| zip.add_file(path) }
     end
 

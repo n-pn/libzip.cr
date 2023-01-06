@@ -1,4 +1,4 @@
-@[Link(ldflags: "-lzip")]
+@[Link(ldflags: "-lzip -L/usr/local/lib")]
 lib LibZip
   ZIP_CHECKCONS          =     4
   ZIP_CM_BZIP2           =    12
