@@ -1,22 +1,21 @@
 require "../spec_helper"
 
 describe "Zip::FileSource" do
-  # zip_path = "spec/file_source.zip"
+  zip_path = "spec/tmp/file-source.zip"
+  files = Dir.glob("src/zip/**/*.cr").sort!
 
   it "can read files from disk" do
-    File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+    File.delete?(zip_path)
 
     # populate src zip with test files
-    Zip::Archive.create(ZIP_PATH) do |zip|
-      SOURCE_FILES.each do |path|
-        zip.add_file(path)
-      end
+    Zip::Archive.create(zip_path) do |zip|
+      files.each { |path| zip.add_file(path) }
     end
 
     # open src zip file for reading
-    Zip::Archive.open(ZIP_PATH) do |zip|
-      SOURCE_FILES.each do |path|
-        data = String.new(zip.read(path))
+    Zip::Archive.open(zip_path) do |zip|
+      files.each do |path|
+        data = zip.open(path, &.gets_to_end)
         data.should eq File.read(path)
       end
     end

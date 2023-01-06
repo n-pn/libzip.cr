@@ -1,3 +1,5 @@
+require "./libzip"
+require "./libc"
 require "./zip/*"
 
 # Crystal bindings for [libzip](http://www.nih.at/libzip/), which allows

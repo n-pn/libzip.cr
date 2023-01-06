@@ -1,15 +1,20 @@
+require "../libzip"
+
 module Zip
   # Abstract base source for `Archive#add` or `Archive#replace`.  You
   # cannot instantiate this class directly; use one of the subclasses
   # instead.
   class Source
-    protected getter source
+    protected getter source : LibZip::ZipSourceT
 
     # Internal `Source` constructor.
-    protected def initialize(zip : Archive, @source : LibZip::ZipSourceT?)
-      unless @source
-        raise Error.new(zip.error)
-      end
+    protected def initialize(zip : Archive, source : LibZip::ZipSourceT?)
+      raise Error.new(zip.error) unless source
+      @source = source
+    end
+
+    def to_unsafe
+      @source
     end
   end
 
@@ -77,10 +82,9 @@ module Zip
   #
   # TODO
   class DescriptorSource < Source
-    def initialize(zip : Archive, fd : IO::FileDescriptor, offset : UInt64 = 0_u64, len : Int64 = -1_i64)
-      fh = C.fdopen(fd.fd, "rb")
-      raise "couldn't reopen descriptor" if fh == nil
-      super(zip, LibZip.zip_source_filep(zip.zip, fh, offset, len))
+    def initialize(archive : Archive, file : IO::FileDescriptor, offset : UInt64 = 0_u64, len : Int64 = -1_i64)
+      raise "couldn't reopen descriptor" unless fh = LibC.fdopen(file.fd, "rb")
+      super(archive, LibZip.zip_source_filep(archive, fh, offset, len))
     end
   end
 
@@ -107,13 +111,8 @@ module Zip
     #     # add file to archive as "foo.txt"
     #     zip.add("foo.txt", source)
     #
-    def initialize(
-      zip : Archive,
-      path : String,
-      offset : UInt64 = 0_u64,
-      len : Int64 = -1_i64
-    )
-      super(zip, LibZip.zip_source_file(zip.zip, path, offset, len))
+    def initialize(archive : Archive, fname : String, offset : UInt64 = 0_u64, len : Int64 = -1)
+      super(archive, LibZip.zip_source_file(archive, fname, offset, len))
     end
   end
 
@@ -228,7 +227,7 @@ module Zip
   # * `OPEN`: Prepare for reading.  Return 0 on succes, or -1 on error.
   # * `READ`: Read data into `slice`.  Return the number of bytes read, or -1 on error.
   # * `CLOSE`: Reading is done.  Return 0.
-  # * `STAT`: Get meta information for input data.  `slice` points to an allocated `LibZip::Stat` structure.  Return ```sizeof(Zip::LibZip::Stat)``` on success, or -1 on error.
+  # * `STAT`: Get meta information for input data. `slice` points to an allocated `LibZip::Stat` structure.  Return ```sizeof(LibZip::Stat)``` on success, or -1 on error.
   # * `ERROR`: Get error information.  `slice` points to an array of `LibC::Int` values which should be filled in with the corresponding `ErrorCode` and (if applicable) system error code.  Return ```2 * sizeof(LibC::Int)```.
   # * `FREE`: Clean up resources.  Return 0.
   #
@@ -281,10 +280,10 @@ module Zip
   #             end
   #           when .stat?
   #             # get size of stat struct
-  #             st_size = sizeof(Zip::LibZip::Stat)
+  #             st_size = sizeof(LibZip::Stat)
   #
   #             # create and populate stat struct
-  #             st = Zip::LibZip::Stat.new(
+  #             st = LibZip::Stat.new(
   #               valid:  Zip::StatFlag::SIZE.value,
   #               size:   me.data.bytesize
   #             )

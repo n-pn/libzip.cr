@@ -1,11 +1,12 @@
 name: LibZip
-cflags: '-DU_COMMON_IMPLEMENTATION'
+cflags: '-I/usr/local/include'
 ldflags: '-lzip'
-
 destdir: src/zip/
-
 definitions:
   libzip:
-    description: 'LibZIP binding'
-    includes: ['zip.h']
-    prefixes: ['zip_']
+    description: 'LibZip binding'
+    includes: ['zip.h', 'zipconf.h']
+    prefixes: ['zip_', 'ZIP_', 'Zip_']
+
+options:
+  import_docstrings: full

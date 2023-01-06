@@ -9,6 +9,7 @@ DST_PATH = File.join(
 describe "Zip::ArchiveSource" do
   it "can read files from another archive" do
     # remove test zips
+
     [ZIP_PATH, DST_PATH].each do |path|
       File.delete(path) if File.exists?(path)
     end
@@ -37,15 +38,7 @@ describe "Zip::ArchiveSource" do
     # check files in dst archive
     Zip::Archive.open(DST_PATH) do |zip|
       TEST_FILES.each do |path|
-        # read file contents
-        str = String.build do |b|
-          zip.read(path) do |buf, len|
-            b.write(buf[0, len])
-          end
-        end
-
-        # test file contents
-        str.should eq path
+        zip.read(path).should eq path
       end
     end
   end

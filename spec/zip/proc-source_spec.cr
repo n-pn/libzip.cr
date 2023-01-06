@@ -1,4 +1,4 @@
-# require "../spec_helper"
+require "../spec_helper"
 
 # class TestProcSource < Zip::ProcSource
 #   property pos
@@ -41,10 +41,10 @@
 #         end
 #       when .stat?
 #         # get size of stat struct
-#         st_size = sizeof(Zip::LibZip::ZipStat)
+#         st_size = sizeof(LibZip::ZipStat)
 
 #         # create and populate stat struct
-#         st = Zip::LibZip::ZipStat.new(
+#         st = LibZip::ZipStat.new(
 #           valid: Zip::StatFlag::SIZE.value,
 #           size: me.data.bytesize
 #         )

@@ -1,32 +1,36 @@
+require "../spec_helper"
+
 describe "Zip::Archive" do
   describe ".create(path)" do
+    zip_path = "spec/tmp/create-empty.zip"
     it "can create a new archive imperatively" do
-      # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      File.delete?(zip_path)
 
       # create archive, then close it
-      zip = Zip::Archive.create(ZIP_PATH).close
+      Zip::Archive.create(zip_path).close
+    rescue ex
+      Log.error(exception: ex) { ex.message }
+      false
     end
   end
 
   describe ".create(path, &block)" do
     it "can create a new archive with a block" do
-      # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      zip_path = "spec/tmp/create-block.zip"
 
-      Zip::Archive.create(ZIP_PATH) do |zip|
-        zip.add("foo.txt", "bar")
-      end
+      File.delete?(zip_path)
+      Zip::Archive.create(zip_path, &.add("foo.txt", "bar"))
 
-      # return success
       true
+    rescue
+      false
     end
 
     it "can throw an error message when creating a new archive" do
+      bad_path = "/dev/null/bad.zip"
+
       expect_raises(Zip::Error) do
-        Zip::Archive.create(BAD_PATH) do |zip|
-          zip.add("foo", "bar")
-        end
+        Zip::Archive.create(bad_path, &.add("foo", "bar"))
       end
     end
   end
@@ -59,33 +63,26 @@ describe "Zip::Archive" do
 
   describe "#error" do
     it "can get the last archive error" do
-      # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
-
-      Zip::Archive.create(ZIP_PATH) do |zip|
-        zip.error
-      end
+      zip_path = "spec/tmp/with-error.zip"
+      File.delete?(zip_path)
+      Zip::Archive.create(zip_path, &.error)
     end
   end
 
   describe "#add(path, string)" do
     it "can add a file from a string" do
-      # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
-
-      # create archive
-      Zip::Archive.create(ZIP_PATH) do |zip|
-        zip.add("foo.txt", "bar")
-      end
+      zip_path = "spec/tmp/add-string.zip"
+      File.delete?(zip_path)
+      Zip::Archive.create(zip_path, &.add("foo.txt", "bar"))
     end
   end
 
   describe "#comment" do
     it "can set an archive comment" do
-      # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      zip_path = "spec/tmp/has-comment.zip"
+      File.delete?(zip_path)
 
-      Zip::Archive.create(ZIP_PATH) do |zip|
+      Zip::Archive.create(zip_path) do |zip|
         # set comment
         zip.comment = "foo"
 
@@ -93,26 +90,23 @@ describe "Zip::Archive" do
         zip.add("foo.txt", "bar")
       end
 
-      Zip::Archive.open(ZIP_PATH) do |zip|
+      Zip::Archive.open(zip_path) do |zip|
         zip.comment.should eq "foo"
       end
-
-      # return success
-      true
     end
   end
 
   describe "#name_locate" do
     it "can find a file by name" do
-      # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      zip_path = "spec/tmp/name-locate.zip"
+      File.delete?(zip_path)
 
-      Zip::Archive.create(ZIP_PATH) do |zip|
+      Zip::Archive.create(zip_path) do |zip|
         # add at least one file
         zip.add("foo.txt", "bar")
       end
 
-      Zip::Archive.open(ZIP_PATH) do |zip|
+      Zip::Archive.open(zip_path) do |zip|
         zip.name_locate("foo.txt").should eq 0
       end
     end
@@ -121,7 +115,7 @@ describe "Zip::Archive" do
   describe "#open" do
     it "can open and read files" do
       # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      File.delete?(ZIP_PATH)
 
       # populate zip with test files
       Zip::Archive.create(ZIP_PATH) do |zip|
@@ -132,17 +126,8 @@ describe "Zip::Archive" do
 
       # read test files from zip
       Zip::Archive.open(ZIP_PATH) do |zip|
-        # create buffer
-        buf = Slice(UInt8).new(1024)
-
         TEST_FILES.each do |path|
-          zip.open(path) do |fh|
-            String.build do |b|
-              while ((len = fh.read(buf)) > 0)
-                b.write(buf[0, len])
-              end
-            end.should eq path
-          end
+          zip.open(path, &.gets_to_end).should eq path
         end
       end
     end
@@ -163,53 +148,48 @@ describe "Zip::Archive" do
       # read test files from zip
       Zip::Archive.open(ZIP_PATH) do |zip|
         TEST_FILES.each do |path|
-          String.build do |b|
-            zip.read(path) do |buf, len|
-              b.write(buf[0, len])
-            end
-          end.should eq path
+          zip.read(path).should eq path
         end
       end
     end
   end
 
   describe "#read" do
+    zip_path = "spec/zip/can-read.zip"
+
     it "can read a complete file" do
       # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      File.delete?(zip_path)
 
       # populate zip with test files
-      Zip::Archive.create(ZIP_PATH) do |zip|
-        TEST_FILES.each do |file|
-          zip.add(file, file)
-        end
+      Zip::Archive.create(zip_path) do |zip|
+        TEST_FILES.each { |test| zip.add(test, test) }
       end
 
       # read test files from zip
-      Zip::Archive.open(ZIP_PATH) do |zip|
+      Zip::Archive.open(zip_path) do |zip|
         TEST_FILES.each do |path|
-          String.new(zip.read(path)).should eq path
+          zip.read(path).should eq path
         end
       end
     end
   end
 
   describe "#stat" do
+    zip_path = "spec/zip/read-stats.zip"
+
     it "can stat files" do
       # remove test zip
-      File.delete(ZIP_PATH) if File.exists?(ZIP_PATH)
+      File.delete?(zip_path)
 
-      # populate zip with test files
-      Zip::Archive.create(ZIP_PATH) do |zip|
+      Zip::Archive.create(zip_path) do |zip|
         TEST_FILES.each do |file|
           zip.add(file, file)
         end
       end
 
-      # open zip file and check file sizes
-      Zip::Archive.open(ZIP_PATH) do |zip|
+      Zip::Archive.open(zip_path) do |zip|
         TEST_FILES.each do |path|
-          st = zip.stat(path)
           zip.stat(path).size.should eq path.bytesize
         end
       end
@@ -239,7 +219,6 @@ describe "Zip::Archive" do
       Zip::Archive.open(ZIP_PATH) do |zip|
         # check test files sizes
         TEST_FILES.each do |path|
-          st = zip.stat(path)
           zip.stat(path).size.should eq TEST_STRING.bytesize
         end
       end

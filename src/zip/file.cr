@@ -1,4 +1,4 @@
-require "log"
+require "../libzip"
 
 # Thin `IO` wrapper for reading files from archives.  Use
 # `Archive#open` to get an instance.
@@ -19,22 +19,11 @@ require "log"
 #     # print file contents
 #     puts "file contents: #{str}"
 #
-class Zip::File < ::IO
+class Zip::ZipFile < ::IO
   # Internal method to create a `File` instance.  Use `Archive#open`
   # instead.
-  protected def initialize(@zip : Archive, @file : LibZip::ZipFileT)
-    @open = true
-  end
 
-  # Returns true if this `File` is open, and false otherwise.
-  #
-  # ### Example
-  #
-  #     # is this file open?
-  #     puts "file is open" if file.open?
-  #
-  def open?
-    @open
+  protected def initialize(@zip : Archive, @file : LibZip::ZipFileT)
   end
 
   # Close this `File` instance.
@@ -47,14 +36,14 @@ class Zip::File < ::IO
   #     file.close
   #
   def close : Nil
-    assert_open
+    assert_open!
 
     # close file, check for error
     err = LibZip.zip_fclose(@file)
     raise Zip::Error.new(err) if err != 0
 
     # flag instance as closed
-    @open = false
+    @closed = true
   end
 
   # Read bytes into `Slice` *slice* and return number of bytes read
@@ -71,41 +60,8 @@ class Zip::File < ::IO
   #     len = file.read(buf)
   #
   def read(slice : Slice(UInt8))
-    assert_open
+    assert_open!
     LibZip.zip_fread(@file, slice, slice.bytesize)
-  end
-
-  # Call proc with chunks of file, then return number of bytes read.
-  #
-  # Raises an exception if this `File` is not open.
-  #
-  # ### Example
-  #
-  #     # number of bytes read
-  #     num_bytes = 0
-  #
-  #     # create string builder
-  #     str = String.build do |b|
-  #       # read chunks
-  #       num_bytes = file.read do |buf, len|
-  #         # add chunk to builder
-  #         str.write(buf[0, len])
-  #       end
-  #     end
-  #
-  def read(&block : (Slice(UInt8), Int32) -> Nil) : UInt64
-    # create buffer
-    buf = Slice(UInt8).new(1024)
-    sum = 0_u64
-
-    # read chunks
-    while ((len = read(buf)) > 0)
-      block.call(buf, len)
-      sum += len
-    end
-
-    # return result
-    sum
   end
 
   # `File` instances are read-only so this method unconditionally
@@ -124,7 +80,7 @@ class Zip::File < ::IO
   #     puts file.error
   #
   def error : ErrorCode
-    assert_open
+    assert_open!
 
     # get last error
     LibZip.zip_file_error_get(@file, out err, out unused)
@@ -143,7 +99,7 @@ class Zip::File < ::IO
   #     puts file.system_error
   #
   def system_error : LibC::Int
-    assert_open
+    assert_open!
 
     # get system error
     LibZip.zip_file_error_get(@zip, nil, out res)
@@ -152,8 +108,8 @@ class Zip::File < ::IO
     res
   end
 
-  private def assert_open
+  private def assert_open!
+    raise "file closed" if closed?
     raise "archive closed" unless @zip.open?
-    raise "file closed" unless open?
   end
 end
