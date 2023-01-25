@@ -11,13 +11,13 @@ describe "Zip::FileSource" do
     Zip::Archive.create(zip_path) do |zip|
       zip.compression_method = :zstd
       zip.compression_flags = 3
-      files.each { |path| zip.add_file(path) }
+      files.each { |path| zip.add_file(File.basename(path), path) }
     end
 
     # open src zip file for reading
     Zip::Archive.open(zip_path) do |zip|
       files.each do |path|
-        data = zip.open(path, &.gets_to_end)
+        data = zip.open(File.basename(path), &.gets_to_end)
         data.should eq File.read(path)
       end
     end
